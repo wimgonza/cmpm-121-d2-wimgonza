@@ -93,6 +93,19 @@ document.body.appendChild(exportButton);
 // --- Marker Tool State ---
 let currentThickness = 1;
 let currentSticker: string | null = null;
+let currentColor = randomColor();
+let currentRotation = 0;
+
+function randomColor() {
+  const r = Math.floor(Math.random() * 256);
+  const g = Math.floor(Math.random() * 256);
+  const b = Math.floor(Math.random() * 256);
+  return `rgb(${r},${g},${b})`;
+}
+
+function randomRotation() {
+  return Math.random() * 360;
+}
 
 function selectTool(thickness: number, selectedButton: HTMLButtonElement) {
   currentThickness = thickness;
@@ -102,6 +115,9 @@ function selectTool(thickness: number, selectedButton: HTMLButtonElement) {
   thickButton.classList.remove("selectedTool");
   stickerButtons.forEach((b) => b.classList.remove("selectedTool"));
   selectedButton.classList.add("selectedTool");
+
+  currentColor = randomColor();
+  notifyToolMoved();
 }
 
 function selectSticker(sticker: string, selectedButton: HTMLButtonElement) {
@@ -112,6 +128,8 @@ function selectSticker(sticker: string, selectedButton: HTMLButtonElement) {
   stickerButtons.forEach((b) => b.classList.remove("selectedTool"));
   selectedButton.classList.add("selectedTool");
 
+  currentColor = randomColor();
+  currentRotation = randomRotation();
   notifyToolMoved();
 }
 
@@ -130,9 +148,16 @@ interface DisplayCommand {
 class MarkerLineCommand implements DisplayCommand {
   private points: Point[] = [];
   private thickness: number;
+  private color: string;
 
-  constructor(startX: number, startY: number, thickness: number) {
+  constructor(
+    startX: number,
+    startY: number,
+    thickness: number,
+    color: string,
+  ) {
     this.thickness = thickness;
+    this.color = color;
     this.points.push({ x: startX, y: startY });
   }
 
@@ -145,6 +170,7 @@ class MarkerLineCommand implements DisplayCommand {
 
     ctx.lineWidth = this.thickness;
     ctx.lineCap = "round";
+    ctx.strokeStyle = this.color;
 
     ctx.beginPath();
     ctx.moveTo(this.points[0].x, this.points[0].y);
@@ -162,11 +188,21 @@ class StickerCommand implements DisplayCommand {
   private x: number;
   private y: number;
   private sticker: string;
+  private color: string;
+  private rotation: number;
 
-  constructor(x: number, y: number, sticker: string) {
+  constructor(
+    x: number,
+    y: number,
+    sticker: string,
+    color: string,
+    rotation: number,
+  ) {
     this.x = x;
     this.y = y;
     this.sticker = sticker;
+    this.color = color;
+    this.rotation = rotation;
   }
 
   drag(x: number, y: number) {
@@ -175,10 +211,15 @@ class StickerCommand implements DisplayCommand {
   }
 
   display(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate((this.rotation * Math.PI) / 180);
+    ctx.fillStyle = this.color;
     ctx.font = "36px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(this.sticker, this.x, this.y);
+    ctx.fillText(this.sticker, 0, 0);
+    ctx.restore();
   }
 }
 
@@ -189,19 +230,29 @@ class ToolPreviewCommand {
     private y: number,
     private thickness?: number,
     private sticker?: string,
+    private color?: string,
+    private rotation?: number,
   ) {}
 
   display(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.fillStyle = this.color || "black";
+    ctx.strokeStyle = this.color || "black";
+
     if (this.sticker) {
-      ctx.font = "36px sans-serif";
+      ctx.translate(this.x, this.y);
+      ctx.rotate(((this.rotation || 0) * Math.PI) / 180);
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(this.sticker, this.x, this.y);
+      ctx.font = "36px sans-serif";
+      ctx.fillText(this.sticker, 0, 0);
     } else if (this.thickness) {
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.thickness / 2, 0, Math.PI * 2);
       ctx.stroke();
     }
+
+    ctx.restore();
   }
 }
 
@@ -248,12 +299,19 @@ function startDrawing(e: MouseEvent) {
   toolPreview = null;
 
   if (currentSticker) {
-    currentCommand = new StickerCommand(e.offsetX, e.offsetY, currentSticker);
+    currentCommand = new StickerCommand(
+      e.offsetX,
+      e.offsetY,
+      currentSticker,
+      currentColor,
+      currentRotation,
+    );
   } else {
     currentCommand = new MarkerLineCommand(
       e.offsetX,
       e.offsetY,
       currentThickness,
+      currentColor,
     );
   }
 
@@ -267,8 +325,21 @@ function draw(e: MouseEvent) {
     notifyDrawingChanged();
   } else {
     toolPreview = currentSticker
-      ? new ToolPreviewCommand(e.offsetX, e.offsetY, undefined, currentSticker)
-      : new ToolPreviewCommand(e.offsetX, e.offsetY, currentThickness);
+      ? new ToolPreviewCommand(
+        e.offsetX,
+        e.offsetY,
+        undefined,
+        currentSticker,
+        currentColor,
+        currentRotation,
+      )
+      : new ToolPreviewCommand(
+        e.offsetX,
+        e.offsetY,
+        currentThickness,
+        undefined,
+        currentColor,
+      );
 
     notifyToolMoved();
   }
