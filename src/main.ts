@@ -34,11 +34,26 @@ thickButton.textContent = "Thick Marker";
 // --- Sticker Buttons ---
 const stickers = ["💀", "👀", "😱"];
 const stickerButtons: HTMLButtonElement[] = [];
-stickers.forEach((s) => {
+
+function createStickerButton(sticker: string) {
   const btn = document.createElement("button");
-  btn.textContent = s;
+  btn.textContent = sticker;
+  btn.addEventListener("click", () => selectSticker(sticker, btn));
   stickerButtons.push(btn);
   document.body.appendChild(btn);
+}
+
+stickers.forEach(createStickerButton);
+
+// --- Custom Sticker Button ---
+const customStickerButton = document.createElement("button");
+customStickerButton.textContent = "New Sticker";
+customStickerButton.addEventListener("click", () => {
+  const newSticker = prompt("Enter your custom sticker (emoji or text):", "🥀");
+  if (newSticker && newSticker.trim() !== "") {
+    stickers.push(newSticker);
+    createStickerButton(newSticker);
+  }
 });
 
 document.body.append(
@@ -47,6 +62,7 @@ document.body.append(
   redoButton,
   thinButton,
   thickButton,
+  customStickerButton,
 );
 
 // --- Marker Tool State ---
