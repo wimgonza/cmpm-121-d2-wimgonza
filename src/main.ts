@@ -32,7 +32,7 @@ const thickButton = document.createElement("button");
 thickButton.textContent = "Thick Marker";
 
 // --- Sticker Buttons ---
-const stickers = ["💀", "👀", "😱"];
+const stickers = ["👄", "👀", "😑"];
 const stickerButtons: HTMLButtonElement[] = [];
 
 function createStickerButton(sticker: string) {
@@ -91,7 +91,7 @@ exportButton.addEventListener("click", () => {
 document.body.appendChild(exportButton);
 
 // --- Marker Tool State ---
-let currentThickness = 2;
+let currentThickness = 1;
 let currentSticker: string | null = null;
 
 function selectTool(thickness: number, selectedButton: HTMLButtonElement) {
@@ -175,7 +175,7 @@ class StickerCommand implements DisplayCommand {
   }
 
   display(ctx: CanvasRenderingContext2D) {
-    ctx.font = "22px sans-serif";
+    ctx.font = "36px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(this.sticker, this.x, this.y);
@@ -193,7 +193,7 @@ class ToolPreviewCommand {
 
   display(ctx: CanvasRenderingContext2D) {
     if (this.sticker) {
-      ctx.font = "22px sans-serif";
+      ctx.font = "36px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(this.sticker, this.x, this.y);
@@ -312,8 +312,8 @@ clearButton.addEventListener("click", clearCanvas);
 undoButton.addEventListener("click", undo);
 redoButton.addEventListener("click", redo);
 
-thinButton.addEventListener("click", () => selectTool(2, thinButton));
-thickButton.addEventListener("click", () => selectTool(7, thickButton));
+thinButton.addEventListener("click", () => selectTool(1, thinButton));
+thickButton.addEventListener("click", () => selectTool(5, thickButton));
 
 stickerButtons.forEach((btn, i) => {
   btn.addEventListener("click", () => selectSticker(stickers[i], btn));
