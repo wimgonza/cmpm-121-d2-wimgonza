@@ -19,33 +19,60 @@ const clearButton = document.createElement("button");
 clearButton.textContent = "Clear";
 document.body.appendChild(clearButton);
 
+type Point = { x: number; y: number };
+let strokes: Point[][] = [];
+let currentStroke: Point[] | null = null;
+
 // --- Drawing State ---
 let isDrawing = false;
-let lastPoint = { x: 0, y: 0 };
 
 // --- Helpers ---
+function notifyDrawingChanged() {
+  canvas.dispatchEvent(new Event("drawing-changed"));
+}
+
+canvas.addEventListener("drawing-changed", () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  for (const stroke of strokes) {
+    if (stroke.length < 2) continue;
+
+    ctx.beginPath();
+    ctx.moveTo(stroke[0].x, stroke[0].y);
+
+    for (let i = 1; i < stroke.length; i++) {
+      ctx.lineTo(stroke[i].x, stroke[i].y);
+    }
+
+    ctx.stroke();
+  }
+});
+
 function startDrawing(e: MouseEvent) {
   isDrawing = true;
-  lastPoint = { x: e.offsetX, y: e.offsetY };
+
+  currentStroke = [{ x: e.offsetX, y: e.offsetY }];
+  strokes.push(currentStroke);
+
+  notifyDrawingChanged();
 }
 
 function draw(e: MouseEvent) {
-  if (!isDrawing) return;
+  if (!isDrawing || !currentStroke) return;
 
-  ctx.beginPath();
-  ctx.moveTo(lastPoint.x, lastPoint.y);
-  ctx.lineTo(e.offsetX, e.offsetY);
-  ctx.stroke();
+  currentStroke.push({ x: e.offsetX, y: e.offsetY });
 
-  lastPoint = { x: e.offsetX, y: e.offsetY };
+  notifyDrawingChanged();
 }
 
 function stopDrawing() {
   isDrawing = false;
+  currentStroke = null;
 }
 
 function clearCanvas() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  strokes = [];
+  notifyDrawingChanged();
 }
 
 // --- Event Wiring ---
