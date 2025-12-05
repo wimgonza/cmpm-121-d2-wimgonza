@@ -26,6 +26,34 @@ redoButton.textContent = "Redo";
 
 document.body.append(clearButton, undoButton, redoButton);
 
+//  --- Marker Buttons ---
+const thinButton = document.createElement("button");
+thinButton.textContent = "Thin Marker";
+
+const thickButton = document.createElement("button");
+thickButton.textContent = "Thick Marker";
+
+document.body.append(
+  clearButton,
+  undoButton,
+  redoButton,
+  thinButton,
+  thickButton,
+);
+
+// --- Marker Tool State ---
+let currentThickness = 2;
+
+function selectTool(thickness: number, selectedButton: HTMLButtonElement) {
+  currentThickness = thickness;
+
+  thinButton.classList.remove("selectedTool");
+  thickButton.classList.remove("selectedTool");
+  selectedButton.classList.add("selectedTool");
+}
+
+selectTool(2, thinButton);
+
 // --- Types ---
 type Point = { x: number; y: number };
 
@@ -38,8 +66,10 @@ interface DisplayCommand {
 // --- Marker Line Command ---
 class MarkerLineCommand implements DisplayCommand {
   private points: Point[] = [];
+  private thickness: number;
 
-  constructor(startX: number, startY: number) {
+  constructor(startX: number, startY: number, thickness: number) {
+    this.thickness = thickness;
     this.points.push({ x: startX, y: startY });
   }
 
@@ -49,6 +79,9 @@ class MarkerLineCommand implements DisplayCommand {
 
   display(ctx: CanvasRenderingContext2D) {
     if (this.points.length < 2) return;
+
+    ctx.lineWidth = this.thickness;
+    ctx.lineCap = "round";
 
     ctx.beginPath();
     ctx.moveTo(this.points[0].x, this.points[0].y);
@@ -88,7 +121,11 @@ function startDrawing(e: MouseEvent) {
   isDrawing = true;
   redoStack = [];
 
-  currentCommand = new MarkerLineCommand(e.offsetX, e.offsetY);
+  currentCommand = new MarkerLineCommand(
+    e.offsetX,
+    e.offsetY,
+    currentThickness,
+  );
   commands.push(currentCommand);
 
   notifyDrawingChanged();
@@ -138,3 +175,6 @@ canvas.addEventListener("mouseleave", stopDrawing);
 clearButton.addEventListener("click", clearCanvas);
 undoButton.addEventListener("click", undo);
 redoButton.addEventListener("click", redo);
+
+thinButton.addEventListener("click", () => selectTool(2, thinButton));
+thickButton.addEventListener("click", () => selectTool(7, thickButton));

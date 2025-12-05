@@ -8,3 +8,9 @@
   width: 24px;
   height: 24px;
 }
+
+.selectedTool {
+  background-color: black;
+  color: white;
+  font-weight: bold;
+}
