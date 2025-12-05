@@ -17,10 +17,21 @@ const ctx = canvas.getContext("2d")!;
 // --- UI Setup ---
 const clearButton = document.createElement("button");
 clearButton.textContent = "Clear";
-document.body.appendChild(clearButton);
 
+const undoButton = document.createElement("button");
+undoButton.textContent = "Undo";
+
+const redoButton = document.createElement("button");
+redoButton.textContent = "Redo";
+
+document.body.append(clearButton, undoButton, redoButton);
+
+// --- Types ---
 type Point = { x: number; y: number };
+
+// --- Display + Redo Stacks ---
 let strokes: Point[][] = [];
+let redoStack: Point[][] = [];
 let currentStroke: Point[] | null = null;
 
 // --- Drawing State ---
@@ -31,6 +42,7 @@ function notifyDrawingChanged() {
   canvas.dispatchEvent(new Event("drawing-changed"));
 }
 
+// --- Observer for Redraw ---
 canvas.addEventListener("drawing-changed", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -48,8 +60,10 @@ canvas.addEventListener("drawing-changed", () => {
   }
 });
 
+// --- Drawing Logic ---
 function startDrawing(e: MouseEvent) {
   isDrawing = true;
+  redoStack = [];
 
   currentStroke = [{ x: e.offsetX, y: e.offsetY }];
   strokes.push(currentStroke);
@@ -70,8 +84,26 @@ function stopDrawing() {
   currentStroke = null;
 }
 
+// --- Canvas tools ---
 function clearCanvas() {
   strokes = [];
+  redoStack = [];
+  notifyDrawingChanged();
+}
+
+function undo() {
+  if (strokes.length === 0) return;
+
+  const lastStroke = strokes.pop()!;
+  redoStack.push(lastStroke);
+  notifyDrawingChanged();
+}
+
+function redo() {
+  if (redoStack.length === 0) return;
+
+  const restoredStroke = redoStack.pop()!;
+  strokes.push(restoredStroke);
   notifyDrawingChanged();
 }
 
@@ -80,4 +112,7 @@ canvas.addEventListener("mousedown", startDrawing);
 canvas.addEventListener("mousemove", draw);
 canvas.addEventListener("mouseup", stopDrawing);
 canvas.addEventListener("mouseleave", stopDrawing);
+
 clearButton.addEventListener("click", clearCanvas);
+undoButton.addEventListener("click", undo);
+redoButton.addEventListener("click", redo);
