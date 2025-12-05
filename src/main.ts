@@ -29,10 +29,42 @@ document.body.append(clearButton, undoButton, redoButton);
 // --- Types ---
 type Point = { x: number; y: number };
 
+// --- Display Command Interface ---
+interface DisplayCommand {
+  drag(x: number, y: number): void;
+  display(ctx: CanvasRenderingContext2D): void;
+}
+
+// --- Marker Line Command ---
+class MarkerLineCommand implements DisplayCommand {
+  private points: Point[] = [];
+
+  constructor(startX: number, startY: number) {
+    this.points.push({ x: startX, y: startY });
+  }
+
+  drag(x: number, y: number) {
+    this.points.push({ x, y });
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    if (this.points.length < 2) return;
+
+    ctx.beginPath();
+    ctx.moveTo(this.points[0].x, this.points[0].y);
+
+    for (let i = 1; i < this.points.length; i++) {
+      ctx.lineTo(this.points[i].x, this.points[i].y);
+    }
+
+    ctx.stroke();
+  }
+}
+
 // --- Display + Redo Stacks ---
-let strokes: Point[][] = [];
-let redoStack: Point[][] = [];
-let currentStroke: Point[] | null = null;
+let commands: DisplayCommand[] = [];
+let redoStack: DisplayCommand[] = [];
+let currentCommand: DisplayCommand | null = null;
 
 // --- Drawing State ---
 let isDrawing = false;
@@ -46,17 +78,8 @@ function notifyDrawingChanged() {
 canvas.addEventListener("drawing-changed", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  for (const stroke of strokes) {
-    if (stroke.length < 2) continue;
-
-    ctx.beginPath();
-    ctx.moveTo(stroke[0].x, stroke[0].y);
-
-    for (let i = 1; i < stroke.length; i++) {
-      ctx.lineTo(stroke[i].x, stroke[i].y);
-    }
-
-    ctx.stroke();
+  for (const cmd of commands) {
+    cmd.display(ctx);
   }
 });
 
@@ -65,45 +88,44 @@ function startDrawing(e: MouseEvent) {
   isDrawing = true;
   redoStack = [];
 
-  currentStroke = [{ x: e.offsetX, y: e.offsetY }];
-  strokes.push(currentStroke);
+  currentCommand = new MarkerLineCommand(e.offsetX, e.offsetY);
+  commands.push(currentCommand);
 
   notifyDrawingChanged();
 }
 
 function draw(e: MouseEvent) {
-  if (!isDrawing || !currentStroke) return;
+  if (!isDrawing || !currentCommand) return;
 
-  currentStroke.push({ x: e.offsetX, y: e.offsetY });
-
+  currentCommand.drag(e.offsetX, e.offsetY);
   notifyDrawingChanged();
 }
 
 function stopDrawing() {
   isDrawing = false;
-  currentStroke = null;
+  currentCommand = null;
 }
 
 // --- Canvas tools ---
 function clearCanvas() {
-  strokes = [];
+  commands = [];
   redoStack = [];
   notifyDrawingChanged();
 }
 
 function undo() {
-  if (strokes.length === 0) return;
+  if (commands.length === 0) return;
 
-  const lastStroke = strokes.pop()!;
-  redoStack.push(lastStroke);
+  const last = commands.pop()!;
+  redoStack.push(last);
   notifyDrawingChanged();
 }
 
 function redo() {
   if (redoStack.length === 0) return;
 
-  const restoredStroke = redoStack.pop()!;
-  strokes.push(restoredStroke);
+  const restored = redoStack.pop()!;
+  commands.push(restored);
   notifyDrawingChanged();
 }
 
