@@ -24,14 +24,22 @@ undoButton.textContent = "Undo";
 const redoButton = document.createElement("button");
 redoButton.textContent = "Redo";
 
-document.body.append(clearButton, undoButton, redoButton);
-
-//  --- Marker Buttons ---
+// --- Marker Buttons ---
 const thinButton = document.createElement("button");
 thinButton.textContent = "Thin Marker";
 
 const thickButton = document.createElement("button");
 thickButton.textContent = "Thick Marker";
+
+// --- Sticker Buttons ---
+const stickers = ["💀", "👀", "😱"];
+const stickerButtons: HTMLButtonElement[] = [];
+stickers.forEach((s) => {
+  const btn = document.createElement("button");
+  btn.textContent = s;
+  stickerButtons.push(btn);
+  document.body.appendChild(btn);
+});
 
 document.body.append(
   clearButton,
@@ -43,13 +51,27 @@ document.body.append(
 
 // --- Marker Tool State ---
 let currentThickness = 2;
+let currentSticker: string | null = null;
 
 function selectTool(thickness: number, selectedButton: HTMLButtonElement) {
   currentThickness = thickness;
+  currentSticker = null;
 
   thinButton.classList.remove("selectedTool");
   thickButton.classList.remove("selectedTool");
+  stickerButtons.forEach((b) => b.classList.remove("selectedTool"));
   selectedButton.classList.add("selectedTool");
+}
+
+function selectSticker(sticker: string, selectedButton: HTMLButtonElement) {
+  currentSticker = sticker;
+
+  thinButton.classList.remove("selectedTool");
+  thickButton.classList.remove("selectedTool");
+  stickerButtons.forEach((b) => b.classList.remove("selectedTool"));
+  selectedButton.classList.add("selectedTool");
+
+  notifyToolMoved();
 }
 
 selectTool(2, thinButton);
@@ -94,18 +116,51 @@ class MarkerLineCommand implements DisplayCommand {
   }
 }
 
+// --- Sticker Command ---
+class StickerCommand implements DisplayCommand {
+  private x: number;
+  private y: number;
+  private sticker: string;
+
+  constructor(x: number, y: number, sticker: string) {
+    this.x = x;
+    this.y = y;
+    this.sticker = sticker;
+  }
+
+  drag(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    ctx.font = "22px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(this.sticker, this.x, this.y);
+  }
+}
+
 // --- Tool Preview Command ---
 class ToolPreviewCommand {
   constructor(
     private x: number,
     private y: number,
-    private thickness: number,
+    private thickness?: number,
+    private sticker?: string,
   ) {}
 
   display(ctx: CanvasRenderingContext2D) {
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.thickness / 2, 0, Math.PI * 2);
-    ctx.stroke();
+    if (this.sticker) {
+      ctx.font = "22px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(this.sticker, this.x, this.y);
+    } else if (this.thickness) {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.thickness / 2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
 }
 
@@ -151,11 +206,15 @@ function startDrawing(e: MouseEvent) {
   redoStack = [];
   toolPreview = null;
 
-  currentCommand = new MarkerLineCommand(
-    e.offsetX,
-    e.offsetY,
-    currentThickness,
-  );
+  if (currentSticker) {
+    currentCommand = new StickerCommand(e.offsetX, e.offsetY, currentSticker);
+  } else {
+    currentCommand = new MarkerLineCommand(
+      e.offsetX,
+      e.offsetY,
+      currentThickness,
+    );
+  }
 
   commands.push(currentCommand);
   notifyDrawingChanged();
@@ -166,11 +225,10 @@ function draw(e: MouseEvent) {
     currentCommand.drag(e.offsetX, e.offsetY);
     notifyDrawingChanged();
   } else {
-    toolPreview = new ToolPreviewCommand(
-      e.offsetX,
-      e.offsetY,
-      currentThickness,
-    );
+    toolPreview = currentSticker
+      ? new ToolPreviewCommand(e.offsetX, e.offsetY, undefined, currentSticker)
+      : new ToolPreviewCommand(e.offsetX, e.offsetY, currentThickness);
+
     notifyToolMoved();
   }
 }
@@ -215,3 +273,7 @@ redoButton.addEventListener("click", redo);
 
 thinButton.addEventListener("click", () => selectTool(2, thinButton));
 thickButton.addEventListener("click", () => selectTool(7, thickButton));
+
+stickerButtons.forEach((btn, i) => {
+  btn.addEventListener("click", () => selectSticker(stickers[i], btn));
+});
