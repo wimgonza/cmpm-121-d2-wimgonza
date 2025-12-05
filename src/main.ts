@@ -94,10 +94,28 @@ class MarkerLineCommand implements DisplayCommand {
   }
 }
 
-// --- Display + Redo Stacks ---
+// --- Tool Preview Command ---
+class ToolPreviewCommand {
+  constructor(
+    private x: number,
+    private y: number,
+    private thickness: number,
+  ) {}
+
+  display(ctx: CanvasRenderingContext2D) {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.thickness / 2, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+// --- Display and Redo Stacks ---
 let commands: DisplayCommand[] = [];
 let redoStack: DisplayCommand[] = [];
 let currentCommand: DisplayCommand | null = null;
+
+// --- Tool Preview State ---
+let toolPreview: ToolPreviewCommand | null = null;
 
 // --- Drawing State ---
 let isDrawing = false;
@@ -107,35 +125,54 @@ function notifyDrawingChanged() {
   canvas.dispatchEvent(new Event("drawing-changed"));
 }
 
+function notifyToolMoved() {
+  canvas.dispatchEvent(new Event("tool-moved"));
+}
+
 // --- Observer for Redraw ---
-canvas.addEventListener("drawing-changed", () => {
+canvas.addEventListener("drawing-changed", redraw);
+canvas.addEventListener("tool-moved", redraw);
+
+function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   for (const cmd of commands) {
     cmd.display(ctx);
   }
-});
+
+  if (!isDrawing && toolPreview) {
+    toolPreview.display(ctx);
+  }
+}
 
 // --- Drawing Logic ---
 function startDrawing(e: MouseEvent) {
   isDrawing = true;
   redoStack = [];
+  toolPreview = null;
 
   currentCommand = new MarkerLineCommand(
     e.offsetX,
     e.offsetY,
     currentThickness,
   );
-  commands.push(currentCommand);
 
+  commands.push(currentCommand);
   notifyDrawingChanged();
 }
 
 function draw(e: MouseEvent) {
-  if (!isDrawing || !currentCommand) return;
-
-  currentCommand.drag(e.offsetX, e.offsetY);
-  notifyDrawingChanged();
+  if (isDrawing && currentCommand) {
+    currentCommand.drag(e.offsetX, e.offsetY);
+    notifyDrawingChanged();
+  } else {
+    toolPreview = new ToolPreviewCommand(
+      e.offsetX,
+      e.offsetY,
+      currentThickness,
+    );
+    notifyToolMoved();
+  }
 }
 
 function stopDrawing() {
