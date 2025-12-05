@@ -65,6 +65,31 @@ document.body.append(
   customStickerButton,
 );
 
+// --- Export Button ---
+const exportButton = document.createElement("button");
+exportButton.textContent = "Export High-Res";
+exportButton.addEventListener("click", () => {
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = 1024;
+  exportCanvas.height = 1024;
+  const exportCtx = exportCanvas.getContext("2d")!;
+
+  const scaleX = exportCanvas.width / canvas.width;
+  const scaleY = exportCanvas.height / canvas.height;
+  exportCtx.scale(scaleX, scaleY);
+
+  for (const cmd of commands) {
+    cmd.display(exportCtx);
+  }
+
+  const anchor = document.createElement("a");
+  anchor.href = exportCanvas.toDataURL("image/png");
+  anchor.download = "sketchpad.png";
+  anchor.click();
+});
+
+document.body.appendChild(exportButton);
+
 // --- Marker Tool State ---
 let currentThickness = 2;
 let currentSticker: string | null = null;
